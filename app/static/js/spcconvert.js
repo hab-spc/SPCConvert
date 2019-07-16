@@ -494,6 +494,9 @@ function nextImg() {
         // toggle to old view
         $("#MosaicContainer-annot").toggle();
         $("#annot-step-2").toggle();
+	// empty incorrectArr, and labels
+	incorrectArr = [];
+	labels = [];
     }
 }
 
