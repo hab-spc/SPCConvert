@@ -2,7 +2,6 @@
 """
 spcconvert - batch conversion and webpage building for SPC images
 
-
 """
 
 import cvtools
@@ -28,6 +27,9 @@ import xmlsettings
 from scipy import stats
 import pandas
 from collections import OrderedDict
+
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 def lmap(f, l):
     return list(map(f,l))
@@ -114,7 +116,9 @@ def process_image(bundle):
     
     # print "Timestamp: " + str(timestamp)
     
-    timestring = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+    timestring = datetime.datetime.fromtimestamp(timestamp)
+    image_date = timestring.strftime('%Y-%m-%d')
+    image_time = timestring.strftime('%H:%M:%S')
 
     entry = {}
     entry['maj_axis_len'] = features['major_axis_length']
@@ -132,11 +136,17 @@ def process_image(bundle):
     entry['intensity_green'] = features['intensity_green']
     entry['intensity_blue'] = features['intensity_blue']
 
-    entry['timestring'] = timestring
+    entry['timestring'] = timestring.strftime('%Y-%m-%d %H:%M:%S')
     entry['timestamp'] = timestamp
     entry['width'] = img_c_8bit.shape[1]
     entry['height'] = img_c_8bit.shape[0]
+    entry['label'] = 0
+    entry['user_labels'] = []
+    entry['image_date'] = image_date
+    entry['image_time'] = image_time
+    entry['image_id'] = os.path.basename(image_path)
     entry['url'] = bundle['reldir'] + '/' + filename
+    entry['images'] = bundle['image_dir'] + '/' + filename
     entry['file_size'] = os.path.getsize(image_path)
 
     output = {}
@@ -195,7 +205,7 @@ def run(data_path,cfg):
     subdir = os.path.join(data_path,'..',base_dir_name + '_static_html')
     if not os.path.exists(subdir):
         os.makedirs(subdir)
-    image_dir = os.path.join(subdir,'images')
+    image_dir = os.path.join(subdir,'static/images')
     if not os.path.exists(image_dir):
         os.makedirs(image_dir)
 
@@ -253,7 +263,7 @@ def run(data_path,cfg):
 
     # Monitor processing of the images and save processed images to disk as they become available
     print ("\nProcessing Images...\r"),
-    counter = 0
+    counter = 1
     entry_list = []
     use_jpeg = use_jpeg = cfg.get("UseJpeg").lower() == 'true'
     raw_color = cfg.get("SaveRawColor").lower() == 'true'
@@ -322,7 +332,13 @@ def run(data_path,cfg):
     for i, e in enumerate(entry_list):
         data_list = [
             ('url', e['url']),
+            ('images', e['images']),
+            ('image_id', e['image_id']),
             ('timestamp', e['timestring']),
+            ('image_date', e['image_date']),
+            ('image_time', e['image_time']),
+            ('label', e['label']),
+            ('user_labels', e['user_labels']),
             ('file_size', file_size[i]),
             ('aspect_ratio', aspect_ratio[i]),
             ('maj_axis_len' , maj_len[i]),
@@ -382,14 +398,24 @@ def run(data_path,cfg):
     print ("Exporting spreadsheet results...")
 
     df = pandas.DataFrame(entry_list_scaled)
-    df.to_csv(os.path.join(subdir,'features.tsv'), index=False, sep='\t')
+    df.to_csv(os.path.join(subdir,'features.csv'), index=False)
 
     print ("Building web app...")
 
+    try:
+        os.mkdir(os.path.join(subdir, "templates"))
+        os.mkdir(os.path.join(subdir, "static"))
+    except OSError:
+        print("directory already existed")
+
     # Load html template for rendering
     template = ""
-    with open(os.path.join('app','index.html'),"r") as fconv:
+    with open(os.path.join('app','templates/index.html'),"r") as fconv:
         template = fconv.read()
+
+    server = ""
+    with open(os.path.join('app','server.py'),"r") as fconv:
+        server = fconv.read()
 
     # Define the render context from the processed histograms, images, and stats
     context = {}
@@ -443,27 +469,32 @@ def run(data_path,cfg):
         charts.append(chart)
 
     context['charts'] = charts
-    context['num_pred_0'], context['num_pred_1'] = ("{{num_pred_1}}","{{num_pred_0}}") 
-
+    context['num_pred_0'], context['num_pred_1'] = ("{{num_pred_0}}","{{num_pred_1}}") 
     
     # render the html page and save to disk
     page = pystache.render(template,context)
 
-    with open(os.path.join(subdir,'spcdata.html'),"w") as fconv:
+
+    with open(os.path.join(subdir,'templates/spcdata.html'),"w") as fconv:
         fconv.write(page)
+
+    with open(os.path.join(subdir,'server.py'),"w") as fconv:
+        fconv.write(server)
+
 
     # remove any old app files and try to copy over new ones
     try:
-        shutil.rmtree(os.path.join(subdir,"css"),ignore_errors=True)
-        shutil.copytree("app/css",os.path.join(subdir,"css"))
-        shutil.rmtree(os.path.join(subdir,"js"),ignore_errors=True)
-        shutil.copytree("app/js",os.path.join(subdir,"js"))
+        shutil.rmtree(os.path.join(subdir,"static/css"),ignore_errors=True)
+        shutil.copytree("app/static/css",os.path.join(subdir,"static/css"))
+        shutil.rmtree(os.path.join(subdir,"static/js"),ignore_errors=True)
+        shutil.copytree("app/static/js",os.path.join(subdir,"static/js"))
     except:
         print ("Error copying supporting files for html.")
 
     # Load roistore.js database for rendering
+
     template = ""
-    with open(os.path.join('app','js','database-template.js'),"r") as fconv:
+    with open(os.path.join('app','static/js','database-template.js'),"r") as fconv:
         template = fconv.read()
 
     context = {}
@@ -473,7 +504,7 @@ def run(data_path,cfg):
     # render the javascript page and save to disk
     page = pystache.render(template,context)
 
-    with open(os.path.join(subdir,'js','database.js'),"w") as fconv:
+    with open(os.path.join(subdir,'static/js','database.js'),"w") as fconv:
         fconv.write(page)
 
     print ("Done.")

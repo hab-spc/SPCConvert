@@ -23,6 +23,9 @@ import numpy as np
 from scipy import ndimage, spatial
 import xmlsettings
 
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
 def make_gaussian(size, fwhm = 3, center=None):
     """ Make a square gaussian kernel.
     size is the length of a side of the square
@@ -106,7 +109,7 @@ def intensity_features(img, obj_mask):
     res = {}
 
     # assume that obj_mask contains one connected component
-    prop = measure.regionprops(obj_mask.astype(np.uint8), img)[0]
+    prop = measure.regionprops(obj_mask.astype(np.uint8), img, coordinates='xy')[0]
     res["mean_intensity"] = prop.mean_intensity
 
     intensities = prop.intensity_image[prop.image]

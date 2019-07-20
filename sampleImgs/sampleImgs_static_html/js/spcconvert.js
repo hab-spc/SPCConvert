@@ -1,4 +1,7 @@
 
+var incorrectCount = 0;
+var correctDict = [];
+
 $('.progress').fadeOut(1);
 
 // Debouncer to throttle event triggers
@@ -45,13 +48,16 @@ function updateDetailImage(data) {
 	$('#ImageDetailTitle').html(image_url);
 
 	// Info
+    var classes = {};
+    classes[0] = "Other";
+    classes[1] = "Prorocentrum";
 	//console.log(data);
 	$('#ImageName').html("<h5 class='info-label'>Image ID</h5>" + "<h4>" + data.image_id + "</h4>");
 	$('#Timestamp').html("<h5 class='info-label'>Collection Datetime</h5>" + "<h4>" + data.image_timestamp + "</h4>");
-	$('#MajorAxisLength').html("<h5 class='info-label'>Major Axis Length</h5>" + "<h4>" + (data.major_axis_length*res).toPrecision(3) + " mm</h4>");
-	$('#MinorAxisLength').html("<h5 class='info-label'>Minor Axis Length</h5>" + "<h4>" + (data.minor_axis_length*res).toPrecision(3) + " mm</h4>");
-	$('#AspectRatio').html("<h5 class='info-label'>Aspect Ratio </h5>" + "<h4>" + (data.aspect_ratio).toPrecision(3) + "</h4>");
-	$('#Orientation').html("<h5 class='info-label'>Orientation </h5>" + "<h4>" + (data.orientation).toPrecision(3) + " degress</h4>");
+    $('#class-lbl').html("<h5 class='info-label'>Class Label </h5>" + "<h4>" + classes[data.pred] + " </h4>");
+    $('#PredictedProb').html("<h5 class='info-label'>Predicted Probabilities </h5>");
+    $('#ProbOther').html("<h4 class='info-label'>Other</h4>" + "<h4>" + data.prob_non_proro + "</h4>");
+    $('#ProbProro').html("<h4 class='info-label'>Prorocentrum</h4>" + "<h4>" + data.prob_proro + "</h4>");
 };
 
 function showImageDetail(data) {
@@ -152,6 +158,9 @@ function buildImageMosaic(imageItems) {
         imageData.orientation = this.data.orientation;
         imageData.clipped_fraction = this.data.clipped_fraction;
         imageData.image_timestamp = this.data.timestring;
+        imageData.pred = this.data.pred;
+        imageData.prob_non_proro = this.data.prob_non_proro;
+        imageData.prob_proro = this.data.prob_proro;
 
         // Otherwise show image detail
         showImageDetail(imageData);
@@ -265,3 +274,166 @@ new Chart(document.getElementById("doughnut-chart"), {
     }
 });
 }
+
+// filter by class label
+function createAnnotMosaic(event) {
+
+    // create the Mosaic
+    if(document.getElementById("class-drop").value == "Prorocentrum"){
+        populateMos(1);
+    } else {
+        populateMos(0);
+    }
+}
+
+// populate mosaic with images with class label
+function populateMos(label) {
+
+    // query for all images with pred = label
+    imgItems = roistore({pred:{is:label}}).order("height desc").get();
+
+    // update counters
+
+    $("#num-incorrect").text("0/" + imgItems.length);
+    $("#num-annot").text("0/" + imgItems.length);
+
+    // display imgItems
+    buildAnnotMosaic(imgItems);
+}
+
+function buildAnnotMosaic(imageItems) {
+    
+    loadedCounter = 0;
+    $('#MosaicContainer-annot').empty();
+    
+    
+    for ( var i = 0; i < imageItems.length; i++ ) {
+        var elem = getItemElement(imageItems[i]);
+        $('#MosaicContainer-annot').append(elem);
+        loadedCounter++;
+    }
+    
+    // create item element for each image
+    function getItemElement(data) {
+        var elem = document.createElement('div');
+        image_ext = "." + data.url.split('.').slice(-1)[0];
+        elem.style.backgroundImage = "url('"+data.url+"')";
+        elem.className = 'image-item'
+        elem.style.width = data.width.toString()+"px";
+        elem.style.height = data.height.toString()+"px";
+        elem.data = data;
+        return elem;
+    };
+    
+    // Delegate mouse click event to image items
+    $('.image-item').on('click', SuryasFunction)
+
+    function SuryasFunction(event) {
+
+        
+
+        // add borders and update incorrect stats
+        if ($(this).hasClass("red-border")) {
+            $(this).removeClass("red-border");
+            incorrectCount -= 1;
+            index = correctDict.indexOf(this.data.image_url)
+            array.splice(index, 1);
+            
+        }
+        else {
+            $(this).addClass("red-border");
+            incorrectCount += 1;
+            correctDict.push(this.data.image_url);
+        }
+    }
+
+    $('.image-item').on('mouseenter', function(e) {
+
+        imageData = this.data;
+        imageData.image_url = this.data.url.replace(/\.[^/.]+$/, ""); // remove extension
+        imageData.image_id = imageData.image_url.split("/").slice(-1)[0]
+        imageData.image_width = this.data.width;
+        imageData.image_height = this.data.height;
+        imageData.major_axis_length = this.data.major_axis_length;
+        imageData.minor_axis_length = this.data.minor_axis_length;
+        imageData.aspect_ratio = this.data.aspect_ratio;
+        imageData.orientation = this.data.orientation;
+        imageData.clipped_fraction = this.data.clipped_fraction;
+        imageData.image_timestamp = this.data.timestring;
+        imageData.gtruth = this.data.gtruth;
+        imageData.pred = this.data.pred;
+        imageData.prob_non_proro = this.data.prob_non_proro;
+        imageData.prob_proro = this.data.prob_proro;
+
+        // show image detail
+        showImageDetailAnnot(imageData);
+
+    });
+
+    $('.image-item').on('mouseexit', function(){
+
+        $('#status-text').html('');
+
+    });
+    
+}
+
+function updateDetailImageAnnot(data) {
+
+
+    //var cameraIndex = camera.val();
+    var siteURL = '';
+
+    var base_url = siteURL+data.image_url;
+    var image_url = base_url + image_ext;
+    $('#TargetImg-annot').attr("src",image_url);
+    // Compute Image size from ImageDetail Container
+    var aspectRatio = data.image_height/data.image_width;
+    var heightScale = $('#ImageDetail-annot').height()/data.image_height;
+    var widthScale = $('#ImageDetail-annot').width()/data.image_width;
+  
+    // Scale Image by width
+    $('#TargetImg-annot').width(300);
+    $('#TargetImg-annot').height(300);
+    $('#ImageDetailTitle-annot').html(image_url);
+
+    // Info
+    var classes = {};
+    classes[0] = "Other";
+    classes[1] = "Prorocentrum";
+    //console.log(data);
+    $('#ImageName-annot').html("<span class='info-label'>Image ID</span>" + "<span>" + data.image_id + "</span>");
+    $('#Timestamp-annot').html("<span class='info-label'>Collection Datetime</span>" + "<span>" + data.image_timestamp + "</span>");
+    $('#gtruth-lbl-annot').html("<span class='info-label'>Gtruth </span>" + "<span>" + "None" + " </span>");
+    $('#pred-lbl-annot').html("<span class='info-label'>Predicted Class </span>" + "<span>" + classes[data.pred] + " </span>");
+    $('#PredictedProb-annot').html("<span class='info-label'>Predicted Probabilities </span>");
+    $('#ProbOther-annot').html("<span class='info-label'>Other</span>" + "<span>" + (data.prob_non_proro).toPrecision(3) + "</span>");
+    $('#ProbProro-annot').html("<span class='info-label'>Prorocentrum</span>" + "<hspan>" + (data.prob_proro).toPrecision(3) + "</hspan>");
+};
+
+function showImageDetailAnnot(data) {
+    // Otherwise show image detail
+    //var data = this.roi_data;
+    siteURL = '';
+    var base_url = siteURL+data.image_url;
+    updateDetailImageAnnot(data);
+    $(window).resize(debouncer (function() { return updateDetailImageAnnot(data);}));
+
+};
+
+
+// console.log(roistore());
+
+function setGtruth() {
+
+    for (var i = 0; i < correctDict.length; i++) {
+        var curr = roistore({url: correctDict[i]});
+        var val = curr.select(pred)[0];
+        curr.update({gtruth: !val});
+    }
+    
+}
+
+$("#annot-sub").on("click", setGtruth);
+
+

@@ -181,3 +181,40 @@ img #TargetImage {
     font-size: 15px;
 }
 
+#graph-container {
+  height: 700px;
+  width: 700px;
+}
+
+.tool-pane {
+  top:auto;
+  padding-right: 25px;
+  padding-left: 25px;
+  padding-bottom: 10px;
+  margin-top: -40px;
+  margin-bottom: 5px;
+  background-color: #111;
+  width: 100%;
+  position: fixed;
+}
+
+#info-sidebar {
+  width: 400px;
+  height: 100%;
+  border-left: 0.5px solid #3f3f3f;
+  padding: 20px;
+  float: right;
+}
+
+#MosaicContainer-annot {
+  float: left;
+  width: 1200px;
+}
+
+#num-incorrect {
+  color: red;
+}
+
+.red-border {
+  border: 1px solid red;
+}
