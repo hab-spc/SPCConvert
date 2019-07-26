@@ -517,7 +517,7 @@ function nextImg() {
 
         // Empty the incorrect arr, and labels
         incorrectArr = [];
-        labels = [];
+
     }
 }
 
