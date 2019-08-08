@@ -198,6 +198,22 @@ img #TargetImage {
   position: fixed;
 }
 
+#info-sidebar {
+  width: 400px;
+  height: 100%;
+  border-left: 0.5px solid #3f3f3f;
+  padding: 20px;
+  position: fixed;
+  right: 0;
+  top: 125;
+
+}
+
+#MosaicContainer-annot {
+  float: left;
+  width: 1000px;
+}
+
 #num-incorrect {
   color: red;
 }
