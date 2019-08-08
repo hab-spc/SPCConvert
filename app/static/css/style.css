@@ -210,3 +210,14 @@ img #TargetImage {
   display: grid;
   grid-template-columns: 70% 30%;
 }
+
+.image-item:active {
+  animation-name: imgClick;
+  animation-duration: 3s; 
+}
+
+@keyframes imgClick {
+  0%   {border: 1px solid red;}
+  75%  {border: 5px solid red;}
+  100% {border: 1px solid red;}
+}
