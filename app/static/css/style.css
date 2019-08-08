@@ -222,21 +222,18 @@ img #TargetImage {
   border: 1px solid red;
 }
 
-#annot-step-2 {
-  margin-left: 10px;
+#annot {
+  display: grid;
+  grid-template-columns: 70% 30%;
 }
 
-#next-btn {
-  display: inline-block;
-  border: 1px solid grey;
-  padding: 5px;
-  margin: 10px;
-  background-color: green;
-  color: white;
+.image-item:active {
+  animation-name: imgClick;
+  animation-duration: 3s; 
 }
 
-#annot-img {
-  margin-left: 100px;
-  margin-top: 50px;
-  margin-bottom: 25px;
+@keyframes imgClick {
+  0%   {border: 1px solid red;}
+  75%  {border: 5px solid red;}
+  100% {border: 1px solid red;}
 }
