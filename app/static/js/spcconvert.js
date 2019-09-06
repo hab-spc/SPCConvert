@@ -462,3 +462,9 @@ function setAnnotClass() {
 }
 
 $("#annot-sub").on("click", setGtruth);
+
+
+function hideSidebar(e) {
+    $("#info-sidebar").toggle();
+}
+$("#hide-sidebar").on("click", hideSidebar);
